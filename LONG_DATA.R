@@ -1,12 +1,14 @@
-library(tidyr)
-library(dplyr)
+library(tidyverse)
 library(data.table)
 
 
 damage_points_cropped_ML <- read_csv("/scratch/ope4/MERGE/EXPORT_SHP/damage_points_cropped_ML.csv")
 
 
-#str(damage_points_cropped_ML)
+
+
+
+str(damage_points_cropped_ML)
 
 
 

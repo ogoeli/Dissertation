@@ -2,6 +2,7 @@ library(sf)
 library(raster)
 library(tidyverse)
 
+
 ###path to the database
 path_ds <- "/scratch/ope4/MERGE/OLD - CONUS_Region3_AllYears.gdb"
 ###check number of layers in the database
@@ -279,8 +280,10 @@ ggplot(damage_points_cropped) +
 ###########################################################################################################################
 
 
+
 data <- read_csv("/scratch/ope4/MERGE/EXPORT_SHP/damage_points_cropped.csv")
 
+str(data)
 
 ####input your raster file
 raster_stack <- brick("/scratch/ope4/MERGE/RASTER_TIFF/LANDSAT_15.tif")
