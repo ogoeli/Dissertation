@@ -97,14 +97,15 @@ ts_bettle <- na.approx(ts_bettle)
 
 ts_drought <- ts(ndvi_df_Drought_event$ndvi, frequency = 365, start = c(2019, 1)) 
 
+head(time_series)
 
 
 ############# DBEST MODEL ###################
 
-DBEST.bettle <- DBEST(data=ts_bettle, data.type="cyclical", 
-                     seasonality=365, algorithm="change detection", 
+DBEST.bettle <- DBEST(data=time_series, data.type="cyclical", 
+                     seasonality=12, algorithm="change detection", 
                      breakpoints.no=3, first.level.shift=0.1, 
-                     second.level.shift=0.2, duration=800, 
+                     second.level.shift=0.2, duration=144, 
                      distance.threshold="default", alpha=0.05, plot="on")
 
 print(DBEST.bettle)
@@ -154,7 +155,7 @@ plot(BEAST_DROUGHT)
 
 rdist <- 10/length(ts_bettle)
 # ratio of distance between breaks (time steps) and length of the time series
-BFAST_BETTLE <- bfast(ts_bettle, season = "harmonic")
+BFAST_BETTLE <- bfast(time_series, season = "harmonic")
 plot(BFAST_BETTLE)
 BFAST_BETTLE
 

@@ -97,7 +97,7 @@ table(extracted_values_15$cover_code)
 
 # Now, convert the dataframe to an sf object and assign CRS
 boundary <- extracted_values_15 |>
-  dplyr::filter(cover_code >= 5) ##height greater than or equal to 5
+  dplyr::filter(cover_code >= 1) ##height greater than or equal to 5
 
 # Step 1: Extract the date part (first 8 characters from 'system.index')
 boundary$timestamp <- substr(boundary$system.index, 1, 8)
@@ -116,23 +116,31 @@ data <- boundary %>%
     year_month = paste(year, month, sep = "-")
   )
 
+# Calculate indices
+data$NDVI <- (data$B8 - data$B4) / (data$B8 + data$B4)
+data$NDWI <- (data$B3 - data$B8) / (data$B3 + data$B8)
+data$RENDVI <- (data$B8 - data$B5) / (data$B8 + data$B5)
+data$CCCI <- data$NDVI * data$RENDVI
+
 
 # Group by year_month and cover, and calculate the mean for each band
 grouped_data <- data %>%
   group_by(year_month, cover) %>%
-  summarise(across(starts_with('B'), mean, na.rm = TRUE)) 
+  #summarise(across(starts_with('B'), mean, na.rm = TRUE)) %>%
+  summarise(across(matches('^(N|CC)'), mean, na.rm = TRUE))
 
 
 # Reshape the data for plotting
 long_data <- grouped_data %>%
-  pivot_longer(cols = starts_with('B'), names_to = 'Band', values_to = 'Mean_Value') |>
-  dplyr::filter(cover == 3 | cover == 1) |>
-  dplyr::filter(Band == "B12")
+  pivot_longer(cols = starts_with('N'), names_to = 'Band', values_to = 'Mean_Value') |>
+  dplyr::filter(cover == 4 | cover == 3) |>
+  dplyr::filter(Band == "NDWI")
 
 # Plot the trends, considering year and month
-ggplot(long_data, aes(x = year_month, y = Mean_Value, color = cover, group = cover)) +
+ggplot(long_data, aes(x = year_month, y = Mean_Value, color = factor(cover), group = cover)) +
   geom_line() +
   geom_point() +
+  #scale_color_brewer(palette = "Set1") +  # or "Dark2", "Paired", etc.
   labs(title = 'Time Series Trends by Cover, Year, and Month',
        x = 'Year-Month',
        y = 'Mean Value') +

@@ -4,8 +4,20 @@ df <- df[!duplicated(df[c("geom")]), ]
 
 
 
-inner_join <- inner_join(
-  results_df_unique,
+inner_join_NDVI <- inner_join(
+  results_df_unique_NDVI,
+  df,
+  by = "geom")
+
+
+inner_join_NDWI <- inner_join(
+  results_df_unique_NDWI,
+  df,
+  by = "geom")
+
+
+inner_join_CCCI <- inner_join(
+  results_df_unique_CCCI,
   df,
   by = "geom")
 
@@ -22,7 +34,7 @@ inner_join_2 <- inner_join(
   by = "geom")
 
 
-dataset <- rbind(inner_join_2, inner_join)
+dataset <- rbind(inner_join_CCCI, inner_join_NDWI,  inner_join_NDVI)
 
 
 # Extract coordinates and split into longitude and latitude

@@ -36,30 +36,19 @@ data <- data %>%
   )
 
 
+# Calculate indices
+data$NDVI <- (data$B8 - data$B4) / (data$B8 + data$B4)
+data$NDWI <- (data$B3 - data$B8) / (data$B3 + data$B8)
+data$RENDVI <- (data$B8 - data$B5) / (data$B8 + data$B5)
+data$CCCI <- data$NDVI * data$RENDVI
 
-# Convert columns to numeric
-data$B12 <- as.numeric(data$B12)
-data$B8 <- as.numeric(data$B8)
-data$B8A <- as.numeric(data$B8A)
-data$B9 <- as.numeric(data$B9)
-data$B4 <- as.numeric(data$B4)
-data$cover <- as.numeric(data$cover)
 
-# Verify the changes
-str(data)
 
 df <- data |>
   group_by(.geo, year_month_1) |>
  # distinct(.geo, year_month_1, .keep_all = TRUE) |>
   filter(cover == 4) # | cover == 3
 
-
-
-
-# Compute vegetation indices
-df <- df %>%
-  mutate(
-    NDVI = (B8 - B4) / (B8 + B4))
 
 # Assuming 'geometry' identifies the location, filter by the first value of 'geometry'
 df_2 <- df[df$.geo == df$.geo[630], ]
@@ -91,29 +80,11 @@ out$trend[1] #ncp
 out$trend[9][1] #cp
 out$trend[10][1] #cpPr
 out$season$cp[1]
-change_points <- out$trend[[9]]  # or: out$trend$cp
-cp_probabilities <- out$trend[[10]]  # or: out$trend$cpPr
-
-first_cp <- change_points[1]
-second_cp <- change_points[2]
-third_cp <- change_points[3]
-
-first_pr <- cp_probabilities[1]
-second_pr <- cp_probabilities[2]
-third_pr <- cp_probabilities[3]
 
 
-plot(out)                            # plot many variables 
-plot(out, vars=c('y','s','t') )      # plot the Y, seasonal, and trend components only
-plot(out, vars=c('s','scp','samp','t','tcp','tslp'))# Plot some selected variables in 
-
-stl(time_series_imputed, s.window = 7) %>%
-  plot()
-
-
-
+#----------------------------------------------- NDVI ------------------------------------------------
 # Initialize an empty list to store the results
-results_list <- list()
+results_list_NDVI <- list()
 
 bands <- c("NDVI")
 
@@ -131,7 +102,7 @@ for (geom in unique(df$.geo)) {
     
     # Apply beast model
     out <- beast(time_series_imputed, tcp.minmax = c(0, 3), season = 'harmonic')  # 'none': trend-only data without seasonality
-    plot(out)
+    #plot(out)
     
     # Extract change points and probabilities
     change_points <- out$trend[[9]]  # or: out$trend$cp
@@ -153,7 +124,7 @@ for (geom in unique(df$.geo)) {
     third_pr <- cp_probabilities_sorted[3]
     
     # Store the results for the current geometry and band
-    results_list[[paste(geom, band, sep = "_")]] <- data.frame(
+    results_list_NDVI[[paste(geom, band, sep = "_")]] <- data.frame(
       geom = geom,
       band = band,  # ensure band is correctly assigned
       RMSE = out$RMSE,
@@ -175,13 +146,179 @@ for (geom in unique(df$.geo)) {
 }
 
 # Combine all results into one data frame
-results_df <- do.call(rbind, results_list)
+results_df_NDVI <- do.call(rbind, results_list_NDVI)
 
 # Remove duplicates based on 'geom' and 'band'
-results_df_unique <- results_df[!duplicated(results_df[c("geom", "band")]), ]
+results_df_unique_NDVI <- results_df_NDVI[!duplicated(results_df_NDVI[c("geom", "band")]), ]
 
 # Inspect the structure of the final results
-str(results_df_unique)
+str(results_df_unique_NDVI)
+
+
+#-------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+#----------------------------------------------- NDWI ------------------------------------------------
+# Initialize an empty list to store the results
+results_list_NDWI <- list()
+
+bands <- c("NDWI")
+
+# Iterate over unique geometries
+for (geom in unique(df$.geo)) {
+  for (band in bands) {
+    # Filter data for the current geometry
+    df_2 <- df[df$.geo == geom, ]
+    
+    # Create time series
+    time_series <- ts(df_2[[band]], start=c(2019, 1), end=c(2024, 12), frequency = 12)  # assuming monthly data
+    
+    # Interpolate missing values
+    time_series_imputed <- na.approx(time_series)
+    
+    # Apply beast model
+    out <- beast(time_series_imputed, tcp.minmax = c(0, 3), season = 'harmonic')  # 'none': trend-only data without seasonality
+    #plot(out)
+    
+    # Extract change points and probabilities
+    change_points <- out$trend[[9]]  # or: out$trend$cp
+    cp_probabilities <- out$trend[[10]]  # or: out$trend$cpPr
+    
+    # Sort change points and their probabilities by the year (chronologically)
+    sorted_indices <- order(change_points)  # Order the change points by the year (numerically)
+    
+    # Apply sorted indices to change_points and cp_probabilities
+    change_points_sorted <- change_points[sorted_indices]
+    cp_probabilities_sorted <- cp_probabilities[sorted_indices]
+    
+    # Extract individual sorted change points and probabilities
+    first_cp <- change_points_sorted[1]
+    second_cp <- change_points_sorted[2]
+    third_cp <- change_points_sorted[3]
+    first_pr <- cp_probabilities_sorted[1]
+    second_pr <- cp_probabilities_sorted[2]
+    third_pr <- cp_probabilities_sorted[3]
+    
+    # Store the results for the current geometry and band
+    results_list_NDWI[[paste(geom, band, sep = "_")]] <- data.frame(
+      geom = geom,
+      band = band,  # ensure band is correctly assigned
+      RMSE = out$RMSE,
+      R2 = out$R2,
+      ncp = out$trend[1],
+      cp = change_points_sorted,
+      Season_cp = out$season$cp[1],
+      cpPr = cp_probabilities_sorted,
+      change_points = change_points_sorted,
+      cp_probabilities = cp_probabilities_sorted,
+      first_cp = first_cp,
+      second_cp = second_cp,
+      third_cp = third_cp,
+      first_pr = first_pr,
+      second_pr = second_pr,
+      third_pr = third_pr
+    )
+  }
+}
+
+# Combine all results into one data frame
+results_df_NDWI <- do.call(rbind, results_list_NDWI)
+
+# Remove duplicates based on 'geom' and 'band'
+results_df_unique_NDWI <- results_df_NDWI[!duplicated(results_df_NDWI[c("geom", "band")]), ]
+
+# Inspect the structure of the final results
+str(results_df_unique_NDWI)
+
+
+#-------------------------------------------------------------------------------------------------------------------
+
+
+
+
+#----------------------------------------------- CCCI ------------------------------------------------
+# Initialize an empty list to store the results
+results_list_CCCI <- list()
+
+bands <- c("CCCI")
+
+# Iterate over unique geometries
+for (geom in unique(df$.geo)) {
+  for (band in bands) {
+    # Filter data for the current geometry
+    df_2 <- df[df$.geo == geom, ]
+    
+    # Create time series
+    time_series <- ts(df_2[[band]], start=c(2019, 1), end=c(2024, 12), frequency = 12)  # assuming monthly data
+    
+    # Interpolate missing values
+    time_series_imputed <- na.approx(time_series)
+    
+    # Apply beast model
+    out <- beast(time_series_imputed, tcp.minmax = c(0, 3), season = 'harmonic')  # 'none': trend-only data without seasonality
+    #plot(out)
+    
+    # Extract change points and probabilities
+    change_points <- out$trend[[9]]  # or: out$trend$cp
+    cp_probabilities <- out$trend[[10]]  # or: out$trend$cpPr
+    
+    # Sort change points and their probabilities by the year (chronologically)
+    sorted_indices <- order(change_points)  # Order the change points by the year (numerically)
+    
+    # Apply sorted indices to change_points and cp_probabilities
+    change_points_sorted <- change_points[sorted_indices]
+    cp_probabilities_sorted <- cp_probabilities[sorted_indices]
+    
+    # Extract individual sorted change points and probabilities
+    first_cp <- change_points_sorted[1]
+    second_cp <- change_points_sorted[2]
+    third_cp <- change_points_sorted[3]
+    first_pr <- cp_probabilities_sorted[1]
+    second_pr <- cp_probabilities_sorted[2]
+    third_pr <- cp_probabilities_sorted[3]
+    
+    # Store the results for the current geometry and band
+    results_list_CCCI[[paste(geom, band, sep = "_")]] <- data.frame(
+      geom = geom,
+      band = band,  # ensure band is correctly assigned
+      RMSE = out$RMSE,
+      R2 = out$R2,
+      ncp = out$trend[1],
+      cp = change_points_sorted,
+      Season_cp = out$season$cp[1],
+      cpPr = cp_probabilities_sorted,
+      change_points = change_points_sorted,
+      cp_probabilities = cp_probabilities_sorted,
+      first_cp = first_cp,
+      second_cp = second_cp,
+      third_cp = third_cp,
+      first_pr = first_pr,
+      second_pr = second_pr,
+      third_pr = third_pr
+    )
+  }
+}
+
+# Combine all results into one data frame
+results_df_CCCI <- do.call(rbind, results_list_CCCI)
+
+# Remove duplicates based on 'geom' and 'band'
+results_df_unique_CCCI <- results_df_CCCI[!duplicated(results_df_CCCI[c("geom", "band")]), ]
+
+# Inspect the structure of the final results
+str(results_df_unique_CCCI)
+
+
+#-------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
 
 
 
